@@ -1,0 +1,18 @@
+REST API - JSON
+
+GET/users  -HTML Document Render   -done
+GET/api/users  -List all users    -done
+GET/users/1 - Get the user with ID 1  -Dynamic  -done
+GET/users/2 - Get the user with ID 2            -done
+
+Dynamic Ptah parameters
+GET/api/users/:ID:id - Variable
+
+POST/api/users - Create new users
+
+PATCH/api/users/1 - Edit the users with id 1
+
+Delete /api/users/1 - Delete the user wit id 1
+
+
+
