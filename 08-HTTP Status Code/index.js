@@ -11,17 +11,17 @@ const fs = require('fs')
 //plugIn middleware 
 app.use(express.urlencoded({extended:false}))
 
-app.use((req,res,next)=>{
-    console.log("Hello from middleware 1");
-    req.myusername="newbie@dev"
-    next();
-})
+// app.use((req,res,next)=>{
+//     console.log("Hello from middleware 1");
+//     req.myusername="newbie@dev"
+//     next();
+// })
 
-app.use((req,res,next)=>{
-    console.log("Hello from middleware 2",req.myusername);
-    return res.end("Hey")
+// app.use((req,res,next)=>{
+//     console.log("Hello from middleware 2",req.myusername);
+//     return res.end("Hey")
    
-})
+// })
 
 // routes
 app.get("/users", (req, res) => {
@@ -64,10 +64,15 @@ app.post('/api/users',(req,res)=>{
     // create new user
     const body=req.body;
 
+    // 404
+    if (!body || !body.first_name || !body.last_name || !body.email || !body.gender || !body.job_tite ) {
+      return res.status(400).json({msg:'all fields should br filled'})
+    }
+
    users.push({...body,id:users.length+1})//id is give by ourself .. total length + 1
    fs.writeFile('./MOCK_DATA.json',JSON.stringify(users),(err,data)=>{
-
-     return res.json({status :"pending"})
+    // nodemon
+     return res.status(200).json({status :"success",id:users.length})
     })
     
 })
