@@ -1,169 +1,127 @@
 const express = require("express");
-
-const users = require("./MOCK_DATA.json");
+const fs = require("fs");
+const mongoose = require("mongoose");
 
 const app = express();
+const port = 8000;
 
-const PORT = 8000;
+// Connection
+mongoose
+  .connect("mongodb://127.0.0.1:27017/youtube-app-1")
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.log("MongoDb Error : ", err));
 
-const fs = require('fs');
-const { default: mongoose } = require("mongoose");
-const { type } = require("os");
-const { log } = require("console");
-
-//plugIn middleware 
-app.use(express.urlencoded({extended:false}))
-
-// app.use((req,res,next)=>{
-//     console.log("Hello from middleware 1");
-//     req.myusername="newbie@dev"
-//     next();
-// })
-
-// app.use((req,res,next)=>{
-//     console.log("Hello from middleware 2",req.myusername);
-//     return res.end("Hey")
-   
-// })
-
-
-// Connect mongoose
-mongoose.connect('mongodb://127.0.0.1:27017/test1')
-.then(()=>console.log('MongoDB Connected'))
-.catch((err)=>console.log("Mongo Error",err));
-
-
-
-//Schema Define
-const userSchema =new mongoose.Schema({
-  first_name:{
-    type:String,
-    required:true,
+// Schema
+const userSchema = new mongoose.Schema(
+  {
+    firstName: {
+      type: String,
+      required: true,
+    },
+    lastName: {
+      type: String,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    jobTitle: {
+      type: String,
+    },
+    gender: {
+      type: String,
+    },
   },
+  { timestamps: true }
+);
 
-  last_name:{
-    type:String,
-    
-  },
+// Model
+const User = mongoose.model("user", userSchema);
+// "users" collection created - prurals are added by mongoDB
 
-  email:{
-    type:String,
-    required:true,
-    unique:true,
-  },
+// Middleware - Plugin
+app.use(express.urlencoded({ extended: false })); // This will work according to the content type in the header.
 
-  job_title:{
-    type:String,
-  },
-
-  gender:{
-    type:String,
-  },
-},{timestamps:true})
-
-const User=mongoose.model('user',userSchema)
-
-
-
-
-
-// routes
-app.get("/users", (req, res) => {
+app.get("/users", async (req, res) => {
+  const allDbUsers = await User.find({});
   const html = `
     <ul>
-    ${users.map((user) => `<li>${user.first_name}</li>`).join(" ")}
+        ${allDbUsers
+          .map((user) => {
+            return `<li>${user.firstName} - ${user.email}</li>`;
+          })
+          .join("")}
     </ul>
     `;
   res.send(html);
 });
 
-app.get("/api/users", (req, res) => {
-  return res.json(users);
+app.get("/api/users", async (req, res) => {
+  const allDbUsers = await User.find({});
+  // Sending the header in the request section
+  console.log(req.headers);
+
+  // Setting custom headers in response
+  res.setHeader("X-myName", "Batman");
+  return res.json(allDbUsers);
 });
 
-app
-  .route("/api/users/:id")
-  .get((req, res) => {
-    const id = Number(req.params.id); //get
+app.get("/api/users/:id", async (req, res) => {
+  const id = req.params.id;
+  const users = await User.findById(id);
 
-    // find
-    const user = users.find((user) => user.id === id);
-    return res.json(user);
-  })
+  if (!users) {
+    return res.status(404).json({
+      error: "User not found",
+    });
+  }
+  res.json(users);
+});
 
-  // .post((req, res) => {
-  //   // EDIT the user with id
-  //   return res.json({ status: "pending" });
-  // })
-
-  // .delete((req, res) => {
-  //   // Delete the user with id
-  //   return res.json({ status: "pending" });
-  // });
-
-
-// POST
-
-app.post('/api/users',async (req,res)=>{
-    // create new user
-    const body=req.body;
-
-    // 404
-    if (!body || !body.first_name || !body.last_name || !body.email || !body.gender || !body.job_title ) {
-      return res.status(400).json({msg:'all fields should br filled'})
-    }
-    const result= await User.create({
-      first_name:body.first_name,
-      last_name:body.last_name,
-      email:body.email,
-      gender:body.gender,
-      job_title:body.job_title,
-
-    })
-    console.log("result",result);
-    
-    return res.status(201).json({msg:"success"})
-  });
-
-// PATCH
-
-app.patch('/api/users/:id', (req, res) => {
-  const id = Number(req.params.id);
+app.post("/api/users/", async (req, res) => {
   const body = req.body;
+  if (
+    !body ||
+    !body.first_name ||
+    !body.last_name ||
+    !body.email ||
+    !body.gender ||
+    !body.job_title
+  ) {
+    return res.status(400).json({
+      msg: "All fields are required....",
+    });
+  }
 
-  // Update user
-  const user = users.find((user) => user.id === id);
-  if (!user) return res.status(404).json({ status: "error", message: "User not found" });
+  const result = await User.create({
+    firstName: body.first_name,
+    lastName: body.last_name,
+    email: body.email,
+    gender: body.gender,
+    jobTitle: body.job_title,
+  });
 
-  Object.assign(user, body); // Update fields
-
-  // Save changes
-  fs.writeFile('./MOCK_DATA.json', JSON.stringify(users), (err) => {
-      if (err) return res.status(500).json({ status: "error", message: "Could not update user" });
-      res.json({ status: "success", message: `User with id ${id} updated`, user });
+  res.status(201).json({
+    msg: "Success",
   });
 });
 
-
-//  DELETE
-
-app.delete('/api/users/:id', (req, res) => {
-  const id = Number(req.params.id);
-
-  // Remove user
-  const updatedUsers = users.filter((user) => user.id !== id);
-
-  // Write updated data to file
-  fs.writeFile('./MOCK_DATA.json', JSON.stringify(updatedUsers), (err) => {
-      if (err) {
-          return res.status(500).json({ status: "error", message: "Could not delete user" });
-      }
-      return res.json({ status: "success", message: `User with id ${id} deleted` });
+app.patch("/api/users/:id", async (req, res) => {
+  const id = req.params.id;
+  await User.findByIdAndUpdate(id, {
+    firstName: "Kim",
+    lastName: "Putin",
   });
+  return res.json({ status: "Success" });
 });
 
+app.delete("/api/users/:id", async (req, res) => {
+  const id = req.params.id;
+  await User.findByIdAndDelete(id);
+  return res.json({
+    status: "Success",
+  })
+});
 
-app.listen(PORT, () => console.log(`Server started at port: ${PORT}`));
-
-//express does not know it is which type of data so we use : MIDDLEWARE  :
-// add "x- " for custom Header
+app.listen(port);
